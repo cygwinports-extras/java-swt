@@ -1,0 +1,35 @@
+inherit java
+
+DESCRIPTION="Eclipse Standard Widget Toolkit for Java"
+HOMEPAGE="http://www.eclipse.org/swt/"
+SRC_URI="http://download.eclipse.org/eclipse/downloads/drops/R-${PV}-200909170800/swt-${PV}-gtk-linux-x86.zip"
+SRC_DIR=.
+
+PATCH_URI="3.5.1-cygwin.patch"
+
+CYGPORT_USE_UNSTABLE_API=1
+src_unpack_hook() {
+	unpack src.zip
+	rm -f *.jar
+}
+
+src_compile() {
+	local swt_v
+
+	lndirs
+	cd ${B}
+	cygmake -f make_cygwin.mak
+	swt_v=$(ls cygswt-gtk-*.dll | sed -e 's|.*-\(.*\)\.dll|\1|')
+
+	cygjavac -d classes org/
+	cygjar -C classes -cf swt-${swt_v}.jar org/
+	cygjavadoc -d javadoc -sourcepath . -subpackages org
+}
+
+src_install() {
+	cd ${B}
+	dobin *.dll
+	dojar *.jar
+	dojavadoc javadoc/
+	dodoc about.html
+}

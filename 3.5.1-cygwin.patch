@@ -1,0 +1,581 @@
+--- origsrc/make_cygwin.mak	1969-12-31 18:00:00.000000000 -0600
++++ src/make_cygwin.mak	2009-12-02 00:08:41.281527200 -0600
+@@ -0,0 +1,204 @@
++#*******************************************************************************
++# Copyright (c) 2000, 2009 IBM Corporation and others.
++# All rights reserved. This program and the accompanying materials
++# are made available under the terms of the Eclipse Public License v1.0
++# which accompanies this distribution, and is available at
++# http://www.eclipse.org/legal/epl-v10.html
++#
++# Contributors:
++#     IBM Corporation - initial API and implementation
++#*******************************************************************************
++
++# Makefile for creating SWT libraries for Cygwin GTK
++
++include make_common.mak
++
++SWT_VERSION=$(maj_ver)$(min_ver)
++
++# Define the various shared libraries to be build.
++WS_PREFIX = gtk
++SWT_PREFIX = swt
++CDE_PREFIX = swt-cde
++AWT_PREFIX = swt-awt
++SWTPI_PREFIX = swt-pi
++CAIRO_PREFIX = swt-cairo
++ATK_PREFIX = swt-atk
++GNOME_PREFIX = swt-gnome
++GLX_PREFIX = swt-glx
++
++SWT_LIB = cyg$(SWT_PREFIX)-$(WS_PREFIX)-$(SWT_VERSION).dll
++CDE_LIB = cyg$(CDE_PREFIX)-$(WS_PREFIX)-$(SWT_VERSION).dll
++AWT_LIB = cyg$(AWT_PREFIX)-$(WS_PREFIX)-$(SWT_VERSION).dll
++SWTPI_LIB = cyg$(SWTPI_PREFIX)-$(WS_PREFIX)-$(SWT_VERSION).dll
++CAIRO_LIB = cyg$(CAIRO_PREFIX)-$(WS_PREFIX)-$(SWT_VERSION).dll
++ATK_LIB = cyg$(ATK_PREFIX)-$(WS_PREFIX)-$(SWT_VERSION).dll
++GNOME_LIB = cyg$(GNOME_PREFIX)-$(WS_PREFIX)-$(SWT_VERSION).dll
++GLX_LIB = cyg$(GLX_PREFIX)-$(WS_PREFIX)-$(SWT_VERSION).dll
++
++CAIROCFLAGS = `pkg-config --cflags cairo`
++CAIROLIBS = `pkg-config --libs cairo`
++
++# Do not use pkg-config to get libs because it includes unnecessary dependencies (i.e. pangoxft-1.0)
++GTKCFLAGS = `pkg-config --cflags gtk+-2.0`
++GTKLIBS = `pkg-config --libs gtk+-2.0 gthread-2.0` -lXtst
++
++CDE_LIBS = -L$(CDE_HOME)/lib -R$(CDE_HOME)/lib -lXt -lX11 -lDtSvc
++
++AWT_LIBS = -shared -L$(AWT_LIB_PATH) -ljawt -lX11
++
++ATKCFLAGS = `pkg-config --cflags atk gtk+-2.0`
++ATKLIBS = `pkg-config --libs atk gtk+-2.0`
++
++GNOMECFLAGS = `pkg-config --cflags gnome-vfs-module-2.0 libgnome-2.0 libgnomeui-2.0`
++GNOMELIBS = `pkg-config --libs gnome-vfs-module-2.0 libgnome-2.0 libgnomeui-2.0`
++
++GLXCFLAGS = 
++GLXLIBS = -shared -lGL -lGLU -lm
++
++# Uncomment for Native Stats tool
++#NATIVE_STATS = -DNATIVE_STATS
++
++SWT_OBJECTS = swt.o c.o c_stats.o callback.o
++CDE_OBJECTS = swt.o cde.o cde_structs.o cde_stats.o
++AWT_OBJECTS = swt_awt.o
++SWTPI_OBJECTS = swt.o os.o os_structs.o os_custom.o os_stats.o
++CAIRO_OBJECTS = swt.o cairo.o cairo_structs.o cairo_stats.o
++ATK_OBJECTS = swt.o atk.o atk_structs.o atk_custom.o atk_stats.o
++GNOME_OBJECTS = swt.o gnome.o gnome_structs.o gnome_stats.o
++GLX_OBJECTS = swt.o glx.o glx_structs.o glx_stats.o
++
++CFLAGS = -O -Wall \
++		-DSWT_VERSION=$(SWT_VERSION) \
++		$(NATIVE_STATS) \
++		-DLINUX -DGTK \
++		-I$(JAVA_HOME)/include \
++		-I$(JAVA_HOME)/include/linux \
++		${SWT_PTR_CFLAGS}
++LIBS = -shared
++
++ifndef NO_STRIP
++	AWT_LIBS := $(AWT_LIBS) -s
++	LIBS := $(LIBS) -s
++endif
++
++all: make_swt make_atk make_gnome make_glx
++
++#
++# SWT libs
++#
++make_swt: $(SWT_LIB) $(SWTPI_LIB)
++
++$(SWT_LIB): $(SWT_OBJECTS)
++	$(CC) $(LIBS) -o $(SWT_LIB) $(SWT_OBJECTS)
++
++callback.o: callback.c callback.h
++	$(CC) $(CFLAGS) -DUSE_ASSEMBLER -c callback.c
++
++$(SWTPI_LIB): $(SWTPI_OBJECTS)
++	$(CC) $(LIBS) -o $(SWTPI_LIB) $(SWTPI_OBJECTS) $(GTKLIBS)
++
++swt.o: swt.c swt.h
++	$(CC) $(CFLAGS) -c swt.c
++os.o: os.c os.h swt.h os_custom.h
++	$(CC) $(CFLAGS) $(GTKCFLAGS) -c os.c
++os_structs.o: os_structs.c os_structs.h os.h swt.h
++	$(CC) $(CFLAGS) $(GTKCFLAGS) -c os_structs.c 
++os_custom.o: os_custom.c os_structs.h os.h swt.h
++	$(CC) $(CFLAGS) $(GTKCFLAGS) -c os_custom.c
++os_stats.o: os_stats.c os_structs.h os.h os_stats.h swt.h
++	$(CC) $(CFLAGS) $(GTKCFLAGS) -c os_stats.c
++
++#
++# CAIRO libs
++#
++make_cairo: $(CAIRO_LIB)
++
++$(CAIRO_LIB): $(CAIRO_OBJECTS)
++	$(CC) $(LIBS) $(CAIROLIBS) -o $(CAIRO_LIB) $(CAIRO_OBJECTS)
++
++cairo.o: cairo.c cairo.h swt.h
++	$(CC) $(CFLAGS) $(CAIROCFLAGS) -c cairo.c
++cairo_structs.o: cairo_structs.c cairo_structs.h cairo.h swt.h
++	$(CC) $(CFLAGS) $(CAIROCFLAGS) -c cairo_structs.c
++cairo_stats.o: cairo_stats.c cairo_structs.h cairo.h cairo_stats.h swt.h
++	$(CC) $(CFLAGS) $(CAIROCFLAGS) -c cairo_stats.c
++
++#
++# CDE lib
++#
++
++make_cde: $(CDE_LIB)
++
++$(CDE_LIB): $(CDE_OBJECTS)
++	$(CC) $(LIBS) $(CDE_LIBS) -o $(CDE_LIB) $(CDE_OBJECTS)
++
++#
++# AWT lib
++#
++make_awt:$(AWT_LIB)
++
++$(AWT_LIB): $(AWT_OBJECTS)
++	$(CC) -o $(AWT_LIB) $(AWT_OBJECTS) $(AWT_LIBS)
++
++#
++# Atk lib
++#
++make_atk: $(ATK_LIB)
++
++$(ATK_LIB): $(ATK_OBJECTS)
++	$(CC) $(LIBS) -o $(ATK_LIB) $(ATK_OBJECTS) $(ATKLIBS)
++
++atk.o: atk.c atk.h
++	$(CC) $(CFLAGS) $(ATKCFLAGS) -c atk.c
++atk_structs.o: atk_structs.c atk_structs.h atk.h
++	$(CC) $(CFLAGS) $(ATKCFLAGS) -c atk_structs.c
++atk_custom.o: atk_custom.c atk_structs.h atk.h
++	$(CC) $(CFLAGS) $(ATKCFLAGS) -c atk_custom.c
++atk_stats.o: atk_stats.c atk_structs.h atk_stats.h atk.h
++	$(CC) $(CFLAGS) $(ATKCFLAGS) -c atk_stats.c
++
++#
++# Gnome lib
++#
++make_gnome: $(GNOME_LIB)
++
++$(GNOME_LIB): $(GNOME_OBJECTS)
++	$(CC) $(LIBS) -o $(GNOME_LIB) $(GNOME_OBJECTS) $(GNOMELIBS)
++
++gnome.o: gnome.c 
++	$(CC) $(CFLAGS) $(GNOMECFLAGS) -c gnome.c
++
++gnome_structs.o: gnome_structs.c 
++	$(CC) $(CFLAGS) $(GNOMECFLAGS) -c gnome_structs.c
++	
++gnome_stats.o: gnome_stats.c gnome_stats.h
++	$(CC) $(CFLAGS) $(GNOMECFLAGS) -c gnome_stats.c
++
++#
++# GLX lib
++#
++make_glx: $(GLX_LIB)
++
++$(GLX_LIB): $(GLX_OBJECTS)
++	$(CC) $(LIBS) -o $(GLX_LIB) $(GLX_OBJECTS) $(GLXLIBS)
++
++glx.o: glx.c 
++	$(CC) $(CFLAGS) $(GLXCFLAGS) -c glx.c
++
++glx_structs.o: glx_structs.c 
++	$(CC) $(CFLAGS) $(GLXCFLAGS) -c glx_structs.c
++	
++glx_stats.o: glx_stats.c glx_stats.h
++	$(CC) $(CFLAGS) $(GLXCFLAGS) -c glx_stats.c
++
++#
++# Install
++#
++install: all
++	cp *.dll $(OUTPUT_DIR)
++
++#
++# Clean
++#
++clean:
++	rm -f *.o *.dll
+--- origsrc/os_custom.h	2009-05-29 17:30:14.000000000 -0500
++++ src/os_custom.h	2009-12-01 23:39:48.468504900 -0600
+@@ -26,189 +26,189 @@
+ #define GtkTreeIter_sizeof() sizeof(GtkTreeIter)
+ 
+ /* Libraries for dynamic loaded functions */
+-#define XRenderQueryExtension_LIB "libXrender.so"
+-#define XRenderQueryVersion_LIB "libXrender.so"
+-#define XRenderFindStandardFormat_LIB "libXrender.so"
+-#define XRenderFindVisualFormat_LIB "libXrender.so"
+-#define XRenderComposite_LIB "libXrender.so"
+-#define XRenderCreatePicture_LIB "libXrender.so"
+-#define XRenderFreePicture_LIB "libXrender.so"
+-#define XRenderSetPictureClipRectangles_LIB "libXrender.so"
+-#define XRenderSetPictureTransform_LIB "libXrender.so"
+-#define gtk_calendar_display_options_LIB "libgtk-x11-2.0.so.0"
+-#define gtk_calendar_get_date_LIB "libgtk-x11-2.0.so.0"
+-#define gtk_calendar_new_LIB "libgtk-x11-2.0.so.0"
+-#define gtk_calendar_select_day_LIB "libgtk-x11-2.0.so.0"
+-#define gtk_calendar_select_month_LIB "libgtk-x11-2.0.so.0"
+-#define gtk_calendar_set_display_options_LIB "libgtk-x11-2.0.so.0"
+-#define gtk_cell_layout_set_attributes_LIB "libgtk-x11-2.0.so.0"
+-#define gtk_cell_layout_clear_LIB "libgtk-x11-2.0.so.0"
+-#define gtk_cell_layout_pack_start_LIB "libgtk-x11-2.0.so.0"
+-#define gtk_combo_box_entry_new_text_LIB "libgtk-x11-2.0.so.0"
+-#define gtk_combo_box_new_text_LIB "libgtk-x11-2.0.so.0"
+-#define gtk_combo_box_insert_text_LIB "libgtk-x11-2.0.so.0"
+-#define gtk_combo_box_remove_text_LIB "libgtk-x11-2.0.so.0"
+-#define gtk_combo_box_get_active_LIB "libgtk-x11-2.0.so.0"
+-#define gtk_combo_box_get_model_LIB "libgtk-x11-2.0.so.0"
+-#define gtk_combo_box_set_active_LIB "libgtk-x11-2.0.so.0"
+-#define gtk_combo_box_set_focus_on_click_LIB "libgtk-x11-2.0.so.0"
+-#define gtk_combo_box_popup_LIB "libgtk-x11-2.0.so.0"
+-#define gtk_combo_box_popdown_LIB "libgtk-x11-2.0.so.0"
+-#define gtk_entry_text_index_to_layout_index_LIB "libgtk-x11-2.0.so.0"
+-#define gtk_entry_get_inner_border_LIB "libgtk-x11-2.0.so.0"
+-#define gtk_file_chooser_add_filter_LIB "libgtk-x11-2.0.so.0"
+-#define gtk_file_chooser_dialog_new_LIB "libgtk-x11-2.0.so.0"
+-#define gtk_file_chooser_get_current_folder_LIB "libgtk-x11-2.0.so.0"
+-#define gtk_file_chooser_get_filename_LIB "libgtk-x11-2.0.so.0"
+-#define gtk_file_chooser_get_filenames_LIB "libgtk-x11-2.0.so.0"
+-#define gtk_file_chooser_get_filter_LIB "libgtk-x11-2.0.so.0"
+-#define gtk_file_chooser_get_uri_LIB "libgtk-x11-2.0.so.0"
+-#define gtk_file_chooser_get_uris_LIB "libgtk-x11-2.0.so.0"
+-#define gtk_file_chooser_set_current_folder_LIB "libgtk-x11-2.0.so.0"
+-#define gtk_file_chooser_set_current_folder_uri_LIB "libgtk-x11-2.0.so.0"
+-#define gtk_file_chooser_set_current_name_LIB "libgtk-x11-2.0.so.0"
+-#define gtk_file_chooser_set_do_overwrite_confirmation_LIB "libgtk-x11-2.0.so.0"
+-#define gtk_file_chooser_set_extra_widget_LIB "libgtk-x11-2.0.so.0"
+-#define gtk_file_chooser_set_filename_LIB "libgtk-x11-2.0.so.0"
+-#define gtk_file_chooser_set_filter_LIB "libgtk-x11-2.0.so.0"
+-#define gtk_file_chooser_set_local_only_LIB "libgtk-x11-2.0.so.0"
+-#define gtk_file_chooser_set_uri_LIB "libgtk-x11-2.0.so.0"
+-#define gtk_file_chooser_set_select_multiple_LIB "libgtk-x11-2.0.so.0"
+-#define gtk_file_filter_add_pattern_LIB "libgtk-x11-2.0.so.0"
+-#define gtk_file_filter_new_LIB "libgtk-x11-2.0.so.0"
+-#define gtk_file_filter_get_name_LIB "libgtk-x11-2.0.so.0"
+-#define gtk_file_filter_set_name_LIB "libgtk-x11-2.0.so.0"
+-#define gtk_expander_get_expanded_LIB "libgtk-x11-2.0.so.0"
+-#define gtk_expander_get_label_widget_LIB "libgtk-x11-2.0.so.0"
+-#define gtk_expander_new_LIB "libgtk-x11-2.0.so.0"
+-#define gtk_expander_set_expanded_LIB "libgtk-x11-2.0.so.0"
+-#define gtk_expander_set_label_LIB "libgtk-x11-2.0.so.0"
+-#define gtk_expander_set_label_widget_LIB "libgtk-x11-2.0.so.0"
+-#define gtk_label_set_line_wrap_mode_LIB "libgtk-x11-2.0.so.0"
+-#define gtk_menu_shell_set_take_focus_LIB "libgtk-x11-2.0.so.0"
+-#define gtk_window_set_keep_below_LIB "libgtk-x11-2.0.so.0"
+-#define gtk_tooltip_trigger_tooltip_query_LIB "libgtk-x11-2.0.so.0"
+-#define gtk_tree_selection_count_selected_rows_LIB "libgtk-x11-2.0.so.0"
+-#define gtk_tree_selection_get_selected_rows_LIB "libgtk-x11-2.0.so.0"
+-#define gtk_tree_view_column_cell_get_position_LIB "libgtk-x11-2.0.so.0"
+-#define gtk_tree_view_set_grid_lines_LIB "libgtk-x11-2.0.so.0"
+-#define gtk_entry_set_alignment_LIB "libgtk-x11-2.0.so.0"
+-#define gdk_cursor_new_from_pixbuf_LIB "libgdk-x11-2.0.so.0"
+-#define gdk_display_get_default_LIB "libgdk-x11-2.0.so.0"
+-#define gdk_display_supports_cursor_color_LIB "libgdk-x11-2.0.so.0"
+-#define gdk_draw_pixbuf_LIB "libgdk-x11-2.0.so.0"
+-#define gdk_pixbuf_save_to_bufferv_LIB "libgdk-x11-2.0.so.0"
+-#define gdk_screen_get_default_LIB "libgdk-x11-2.0.so.0"
+-#define gdk_screen_get_monitor_at_point_LIB "libgdk-x11-2.0.so.0"
+-#define gdk_screen_get_monitor_at_window_LIB "libgdk-x11-2.0.so.0"
+-#define gdk_screen_get_monitor_geometry_LIB "libgdk-x11-2.0.so.0"
+-#define gdk_screen_get_n_monitors_LIB "libgdk-x11-2.0.so.0"
+-#define gdk_screen_get_number_LIB "libgdk-x11-2.0.so.0"
+-#define gtk_status_icon_get_geometry_LIB "libgtk-x11-2.0.so.0"
+-#define gtk_status_icon_get_visible_LIB "libgtk-x11-2.0.so.0"
+-#define gtk_status_icon_new_LIB "libgtk-x11-2.0.so.0"
+-#define gtk_status_icon_set_from_pixbuf_LIB "libgtk-x11-2.0.so.0"
+-#define gtk_status_icon_set_visible_LIB "libgtk-x11-2.0.so.0"
+-#define gtk_status_icon_set_tooltip_LIB "libgtk-x11-2.0.so.0"
+-#define gtk_window_get_group_LIB "libgtk-x11-2.0.so.0"
+-#define gtk_window_get_opacity_LIB "libgtk-x11-2.0.so.0"
+-#define gdk_window_set_keep_above_LIB "libgdk-x11-2.0.so.0"
+-#define gdk_window_set_accept_focus_LIB "libgdk-x11-2.0.so.0"
+-#define gtk_window_set_opacity_LIB "libgtk-x11-2.0.so.0"
+-#define gtk_window_set_skip_taskbar_hint_LIB "libgtk-x11-2.0.so.0"
+-#define gtk_widget_is_composited_LIB "libgtk-x11-2.0.so.0"
+-#define gtk_widget_set_tooltip_text_LIB "libgtk-x11-2.0.so.0"
+-#define gdk_x11_screen_get_window_manager_name_LIB "libgdk-x11-2.0.so.0"
+-#define gdk_x11_screen_lookup_visual_LIB "libgdk-x11-2.0.so.0"
++#define XRenderQueryExtension_LIB "cygXrender-1.dll"
++#define XRenderQueryVersion_LIB "cygXrender-1.dll"
++#define XRenderFindStandardFormat_LIB "cygXrender-1.dll"
++#define XRenderFindVisualFormat_LIB "cygXrender-1.dll"
++#define XRenderComposite_LIB "cygXrender-1.dll"
++#define XRenderCreatePicture_LIB "cygXrender-1.dll"
++#define XRenderFreePicture_LIB "cygXrender-1.dll"
++#define XRenderSetPictureClipRectangles_LIB "cygXrender-1.dll"
++#define XRenderSetPictureTransform_LIB "cygXrender-1.dll"
++#define gtk_calendar_display_options_LIB "cyggtk-x11-2.0-0.dll"
++#define gtk_calendar_get_date_LIB "cyggtk-x11-2.0-0.dll"
++#define gtk_calendar_new_LIB "cyggtk-x11-2.0-0.dll"
++#define gtk_calendar_select_day_LIB "cyggtk-x11-2.0-0.dll"
++#define gtk_calendar_select_month_LIB "cyggtk-x11-2.0-0.dll"
++#define gtk_calendar_set_display_options_LIB "cyggtk-x11-2.0-0.dll"
++#define gtk_cell_layout_set_attributes_LIB "cyggtk-x11-2.0-0.dll"
++#define gtk_cell_layout_clear_LIB "cyggtk-x11-2.0-0.dll"
++#define gtk_cell_layout_pack_start_LIB "cyggtk-x11-2.0-0.dll"
++#define gtk_combo_box_entry_new_text_LIB "cyggtk-x11-2.0-0.dll"
++#define gtk_combo_box_new_text_LIB "cyggtk-x11-2.0-0.dll"
++#define gtk_combo_box_insert_text_LIB "cyggtk-x11-2.0-0.dll"
++#define gtk_combo_box_remove_text_LIB "cyggtk-x11-2.0-0.dll"
++#define gtk_combo_box_get_active_LIB "cyggtk-x11-2.0-0.dll"
++#define gtk_combo_box_get_model_LIB "cyggtk-x11-2.0-0.dll"
++#define gtk_combo_box_set_active_LIB "cyggtk-x11-2.0-0.dll"
++#define gtk_combo_box_set_focus_on_click_LIB "cyggtk-x11-2.0-0.dll"
++#define gtk_combo_box_popup_LIB "cyggtk-x11-2.0-0.dll"
++#define gtk_combo_box_popdown_LIB "cyggtk-x11-2.0-0.dll"
++#define gtk_entry_text_index_to_layout_index_LIB "cyggtk-x11-2.0-0.dll"
++#define gtk_entry_get_inner_border_LIB "cyggtk-x11-2.0-0.dll"
++#define gtk_file_chooser_add_filter_LIB "cyggtk-x11-2.0-0.dll"
++#define gtk_file_chooser_dialog_new_LIB "cyggtk-x11-2.0-0.dll"
++#define gtk_file_chooser_get_current_folder_LIB "cyggtk-x11-2.0-0.dll"
++#define gtk_file_chooser_get_filename_LIB "cyggtk-x11-2.0-0.dll"
++#define gtk_file_chooser_get_filenames_LIB "cyggtk-x11-2.0-0.dll"
++#define gtk_file_chooser_get_filter_LIB "cyggtk-x11-2.0-0.dll"
++#define gtk_file_chooser_get_uri_LIB "cyggtk-x11-2.0-0.dll"
++#define gtk_file_chooser_get_uris_LIB "cyggtk-x11-2.0-0.dll"
++#define gtk_file_chooser_set_current_folder_LIB "cyggtk-x11-2.0-0.dll"
++#define gtk_file_chooser_set_current_folder_uri_LIB "cyggtk-x11-2.0-0.dll"
++#define gtk_file_chooser_set_current_name_LIB "cyggtk-x11-2.0-0.dll"
++#define gtk_file_chooser_set_do_overwrite_confirmation_LIB "cyggtk-x11-2.0-0.dll"
++#define gtk_file_chooser_set_extra_widget_LIB "cyggtk-x11-2.0-0.dll"
++#define gtk_file_chooser_set_filename_LIB "cyggtk-x11-2.0-0.dll"
++#define gtk_file_chooser_set_filter_LIB "cyggtk-x11-2.0-0.dll"
++#define gtk_file_chooser_set_local_only_LIB "cyggtk-x11-2.0-0.dll"
++#define gtk_file_chooser_set_uri_LIB "cyggtk-x11-2.0-0.dll"
++#define gtk_file_chooser_set_select_multiple_LIB "cyggtk-x11-2.0-0.dll"
++#define gtk_file_filter_add_pattern_LIB "cyggtk-x11-2.0-0.dll"
++#define gtk_file_filter_new_LIB "cyggtk-x11-2.0-0.dll"
++#define gtk_file_filter_get_name_LIB "cyggtk-x11-2.0-0.dll"
++#define gtk_file_filter_set_name_LIB "cyggtk-x11-2.0-0.dll"
++#define gtk_expander_get_expanded_LIB "cyggtk-x11-2.0-0.dll"
++#define gtk_expander_get_label_widget_LIB "cyggtk-x11-2.0-0.dll"
++#define gtk_expander_new_LIB "cyggtk-x11-2.0-0.dll"
++#define gtk_expander_set_expanded_LIB "cyggtk-x11-2.0-0.dll"
++#define gtk_expander_set_label_LIB "cyggtk-x11-2.0-0.dll"
++#define gtk_expander_set_label_widget_LIB "cyggtk-x11-2.0-0.dll"
++#define gtk_label_set_line_wrap_mode_LIB "cyggtk-x11-2.0-0.dll"
++#define gtk_menu_shell_set_take_focus_LIB "cyggtk-x11-2.0-0.dll"
++#define gtk_window_set_keep_below_LIB "cyggtk-x11-2.0-0.dll"
++#define gtk_tooltip_trigger_tooltip_query_LIB "cyggtk-x11-2.0-0.dll"
++#define gtk_tree_selection_count_selected_rows_LIB "cyggtk-x11-2.0-0.dll"
++#define gtk_tree_selection_get_selected_rows_LIB "cyggtk-x11-2.0-0.dll"
++#define gtk_tree_view_column_cell_get_position_LIB "cyggtk-x11-2.0-0.dll"
++#define gtk_tree_view_set_grid_lines_LIB "cyggtk-x11-2.0-0.dll"
++#define gtk_entry_set_alignment_LIB "cyggtk-x11-2.0-0.dll"
++#define gdk_cursor_new_from_pixbuf_LIB "cyggdk-x11-2.0-0.dll"
++#define gdk_display_get_default_LIB "cyggdk-x11-2.0-0.dll"
++#define gdk_display_supports_cursor_color_LIB "cyggdk-x11-2.0-0.dll"
++#define gdk_draw_pixbuf_LIB "cyggdk-x11-2.0-0.dll"
++#define gdk_pixbuf_save_to_bufferv_LIB "cyggdk-x11-2.0-0.dll"
++#define gdk_screen_get_default_LIB "cyggdk-x11-2.0-0.dll"
++#define gdk_screen_get_monitor_at_point_LIB "cyggdk-x11-2.0-0.dll"
++#define gdk_screen_get_monitor_at_window_LIB "cyggdk-x11-2.0-0.dll"
++#define gdk_screen_get_monitor_geometry_LIB "cyggdk-x11-2.0-0.dll"
++#define gdk_screen_get_n_monitors_LIB "cyggdk-x11-2.0-0.dll"
++#define gdk_screen_get_number_LIB "cyggdk-x11-2.0-0.dll"
++#define gtk_status_icon_get_geometry_LIB "cyggtk-x11-2.0-0.dll"
++#define gtk_status_icon_get_visible_LIB "cyggtk-x11-2.0-0.dll"
++#define gtk_status_icon_new_LIB "cyggtk-x11-2.0-0.dll"
++#define gtk_status_icon_set_from_pixbuf_LIB "cyggtk-x11-2.0-0.dll"
++#define gtk_status_icon_set_visible_LIB "cyggtk-x11-2.0-0.dll"
++#define gtk_status_icon_set_tooltip_LIB "cyggtk-x11-2.0-0.dll"
++#define gtk_window_get_group_LIB "cyggtk-x11-2.0-0.dll"
++#define gtk_window_get_opacity_LIB "cyggtk-x11-2.0-0.dll"
++#define gdk_window_set_keep_above_LIB "cyggdk-x11-2.0-0.dll"
++#define gdk_window_set_accept_focus_LIB "cyggdk-x11-2.0-0.dll"
++#define gtk_window_set_opacity_LIB "cyggtk-x11-2.0-0.dll"
++#define gtk_window_set_skip_taskbar_hint_LIB "cyggtk-x11-2.0-0.dll"
++#define gtk_widget_is_composited_LIB "cyggtk-x11-2.0-0.dll"
++#define gtk_widget_set_tooltip_text_LIB "cyggtk-x11-2.0-0.dll"
++#define gdk_x11_screen_get_window_manager_name_LIB "cyggdk-x11-2.0-0.dll"
++#define gdk_x11_screen_lookup_visual_LIB "cyggdk-x11-2.0-0.dll"
+ 
+-#define atk_object_add_relationship_LIB "libatk-1.0.so.0"
+-#define pango_attr_underline_color_new_LIB "libpango-1.0.so.0"
+-#define pango_attr_strikethrough_color_new_LIB "libpango-1.0.so.0"
+-#define pango_font_metrics_get_underline_thickness_LIB "libpango-1.0.so.0"
+-#define pango_font_metrics_get_underline_position_LIB "libpango-1.0.so.0"
+-#define pango_font_metrics_get_strikethrough_thickness_LIB "libpango-1.0.so.0"
+-#define pango_font_metrics_get_strikethrough_position_LIB "libpango-1.0.so.0"
+-#define pango_layout_set_auto_dir_LIB "libpango-1.0.so.0"
+-#define pango_cairo_create_layout_LIB "libpangocairo-1.0.so.0"
+-#define pango_cairo_context_set_font_options_LIB "libpangocairo-1.0.so.0"
+-#define pango_cairo_context_get_font_options_LIB "libpangocairo-1.0.so.0"
+-#define pango_cairo_layout_path_LIB "libpangocairo-1.0.so.0"
+-#define pango_cairo_show_layout_LIB "libpangocairo-1.0.so.0"
+-#define pango_cairo_font_map_create_context_LIB "libpangocairo-1.0.so.0"
+-#define pango_cairo_font_map_new_LIB "libpangocairo-1.0.so.0"
+-#define pango_cairo_font_map_get_default_LIB "libpangocairo-1.0.so.0"
+-#define pango_cairo_font_map_set_resolution_LIB "libpangocairo-1.0.so.0"
+-#define gdk_cairo_set_source_color_LIB "libgdk-x11-2.0.so.0"
+-#define gdk_cairo_region_LIB "libgdk-x11-2.0.so.0"
+-#define gdk_cairo_create_LIB "libgdk-x11-2.0.so.0"
+-#define gtk_enumerate_printers_LIB "libgtk-x11-2.0.so.0"
+-#define gtk_page_setup_get_bottom_margin_LIB "libgtk-x11-2.0.so.0"
+-#define gtk_page_setup_get_left_margin_LIB "libgtk-x11-2.0.so.0"
+-#define gtk_page_setup_get_orientation_LIB "libgtk-x11-2.0.so.0"
+-#define gtk_page_setup_get_page_height_LIB "libgtk-x11-2.0.so.0"
+-#define gtk_page_setup_get_page_width_LIB "libgtk-x11-2.0.so.0"
+-#define gtk_page_setup_get_paper_height_LIB "libgtk-x11-2.0.so.0"
+-#define gtk_page_setup_get_paper_size_LIB "libgtk-x11-2.0.so.0"
+-#define gtk_page_setup_get_paper_width_LIB "libgtk-x11-2.0.so.0"
+-#define gtk_page_setup_get_right_margin_LIB "libgtk-x11-2.0.so.0"
+-#define gtk_page_setup_get_top_margin_LIB "libgtk-x11-2.0.so.0"
+-#define gtk_page_setup_new_LIB "libgtk-x11-2.0.so.0"
+-#define gtk_page_setup_set_bottom_margin_LIB "libgtk-x11-2.0.so.0"
+-#define gtk_page_setup_set_left_margin_LIB "libgtk-x11-2.0.so.0"
+-#define gtk_page_setup_set_orientation_LIB "libgtk-x11-2.0.so.0"
+-#define gtk_page_setup_set_paper_size_LIB "libgtk-x11-2.0.so.0"
+-#define gtk_page_setup_set_right_margin_LIB "libgtk-x11-2.0.so.0"
+-#define gtk_page_setup_set_top_margin_LIB "libgtk-x11-2.0.so.0"
+-#define gtk_paper_size_free_LIB "libgtk-x11-2.0.so.0"
+-#define gtk_paper_size_get_display_name_LIB "libgtk-x11-2.0.so.0"
+-#define gtk_paper_size_get_name_LIB "libgtk-x11-2.0.so.0"
+-#define gtk_paper_size_get_ppd_name_LIB "libgtk-x11-2.0.so.0"
+-#define gtk_paper_size_get_height_LIB "libgtk-x11-2.0.so.0"
+-#define gtk_paper_size_get_width_LIB "libgtk-x11-2.0.so.0"
+-#define gtk_paper_size_is_custom_LIB "libgtk-x11-2.0.so.0"
+-#define gtk_paper_size_new_LIB "libgtk-x11-2.0.so.0"
+-#define gtk_paper_size_new_custom_LIB "libgtk-x11-2.0.so.0"
+-#define gtk_paper_size_new_from_ppd_LIB "libgtk-x11-2.0.so.0"
+-#define gtk_print_job_get_printer_LIB "libgtk-x11-2.0.so.0"
+-#define gtk_print_job_get_settings_LIB "libgtk-x11-2.0.so.0"
+-#define gtk_print_job_get_status_LIB "libgtk-x11-2.0.so.0"
+-#define gtk_print_job_get_surface_LIB "libgtk-x11-2.0.so.0"
+-#define gtk_print_job_get_title_LIB "libgtk-x11-2.0.so.0"
+-#define gtk_print_job_new_LIB "libgtk-x11-2.0.so.0"
+-#define gtk_print_job_send_LIB "libgtk-x11-2.0.so.0"
+-#define gtk_print_job_set_source_file_LIB "libgtk-x11-2.0.so.0"
+-#define gtk_print_settings_foreach_LIB "libgtk-x11-2.0.so.0"
+-#define gtk_print_settings_get_LIB "libgtk-x11-2.0.so.0"
+-#define gtk_print_settings_get_collate_LIB "libgtk-x11-2.0.so.0"
+-#define gtk_print_settings_get_n_copies_LIB "libgtk-x11-2.0.so.0"
+-#define gtk_print_settings_get_orientation_LIB "libgtk-x11-2.0.so.0"
+-#define gtk_print_settings_get_page_ranges_LIB "libgtk-x11-2.0.so.0"
+-#define gtk_print_settings_get_paper_height_LIB "libgtk-x11-2.0.so.0"
+-#define gtk_print_settings_get_paper_width_LIB "libgtk-x11-2.0.so.0"
+-#define gtk_print_settings_get_print_pages_LIB "libgtk-x11-2.0.so.0"
+-#define gtk_print_settings_get_printer_LIB "libgtk-x11-2.0.so.0"
+-#define gtk_print_settings_get_resolution_LIB "libgtk-x11-2.0.so.0"
+-#define gtk_print_settings_new_LIB "libgtk-x11-2.0.so.0"
+-#define gtk_print_settings_set_LIB "libgtk-x11-2.0.so.0"
+-#define gtk_print_settings_set_collate_LIB "libgtk-x11-2.0.so.0"
+-#define gtk_print_settings_set_n_copies_LIB "libgtk-x11-2.0.so.0"
+-#define gtk_print_settings_set_orientation_LIB "libgtk-x11-2.0.so.0"
+-#define gtk_print_settings_set_page_ranges_LIB "libgtk-x11-2.0.so.0"
+-#define gtk_print_settings_set_print_pages_LIB "libgtk-x11-2.0.so.0"
+-#define gtk_print_settings_set_printer_LIB "libgtk-x11-2.0.so.0"
+-#define gtk_print_unix_dialog_get_current_page_LIB "libgtk-x11-2.0.so.0"
+-#define gtk_print_unix_dialog_get_page_setup_LIB "libgtk-x11-2.0.so.0"
+-#define gtk_print_unix_dialog_get_selected_printer_LIB "libgtk-x11-2.0.so.0"
+-#define gtk_print_unix_dialog_get_settings_LIB "libgtk-x11-2.0.so.0"
+-#define gtk_print_unix_dialog_new_LIB "libgtk-x11-2.0.so.0"
+-#define gtk_print_unix_dialog_set_current_page_LIB "libgtk-x11-2.0.so.0"
+-#define gtk_print_unix_dialog_set_manual_capabilities_LIB "libgtk-x11-2.0.so.0"
+-#define gtk_print_unix_dialog_set_page_setup_LIB "libgtk-x11-2.0.so.0"
+-#define gtk_print_unix_dialog_set_settings_LIB "libgtk-x11-2.0.so.0"
+-#define gtk_printer_get_backend_LIB "libgtk-x11-2.0.so.0"
+-#define gtk_printer_get_name_LIB "libgtk-x11-2.0.so.0"
+-#define gtk_printer_is_default_LIB "libgtk-x11-2.0.so.0"
+-#define FcConfigAppFontAddFile_LIB "libfontconfig.so.1"
++#define atk_object_add_relationship_LIB "cygatk-1.0-0.dll"
++#define pango_attr_underline_color_new_LIB "cygpango-1.0-0.dll"
++#define pango_attr_strikethrough_color_new_LIB "cygpango-1.0-0.dll"
++#define pango_font_metrics_get_underline_thickness_LIB "cygpango-1.0-0.dll"
++#define pango_font_metrics_get_underline_position_LIB "cygpango-1.0-0.dll"
++#define pango_font_metrics_get_strikethrough_thickness_LIB "cygpango-1.0-0.dll"
++#define pango_font_metrics_get_strikethrough_position_LIB "cygpango-1.0-0.dll"
++#define pango_layout_set_auto_dir_LIB "cygpango-1.0-0.dll"
++#define pango_cairo_create_layout_LIB "cygpangocairo-1.0-0.dll"
++#define pango_cairo_context_set_font_options_LIB "cygpangocairo-1.0-0.dll"
++#define pango_cairo_context_get_font_options_LIB "cygpangocairo-1.0-0.dll"
++#define pango_cairo_layout_path_LIB "cygpangocairo-1.0-0.dll"
++#define pango_cairo_show_layout_LIB "cygpangocairo-1.0-0.dll"
++#define pango_cairo_font_map_create_context_LIB "cygpangocairo-1.0-0.dll"
++#define pango_cairo_font_map_new_LIB "cygpangocairo-1.0-0.dll"
++#define pango_cairo_font_map_get_default_LIB "cygpangocairo-1.0-0.dll"
++#define pango_cairo_font_map_set_resolution_LIB "cygpangocairo-1.0-0.dll"
++#define gdk_cairo_set_source_color_LIB "cyggdk-x11-2.0-0.dll"
++#define gdk_cairo_region_LIB "cyggdk-x11-2.0-0.dll"
++#define gdk_cairo_create_LIB "cyggdk-x11-2.0-0.dll"
++#define gtk_enumerate_printers_LIB "cyggtk-x11-2.0-0.dll"
++#define gtk_page_setup_get_bottom_margin_LIB "cyggtk-x11-2.0-0.dll"
++#define gtk_page_setup_get_left_margin_LIB "cyggtk-x11-2.0-0.dll"
++#define gtk_page_setup_get_orientation_LIB "cyggtk-x11-2.0-0.dll"
++#define gtk_page_setup_get_page_height_LIB "cyggtk-x11-2.0-0.dll"
++#define gtk_page_setup_get_page_width_LIB "cyggtk-x11-2.0-0.dll"
++#define gtk_page_setup_get_paper_height_LIB "cyggtk-x11-2.0-0.dll"
++#define gtk_page_setup_get_paper_size_LIB "cyggtk-x11-2.0-0.dll"
++#define gtk_page_setup_get_paper_width_LIB "cyggtk-x11-2.0-0.dll"
++#define gtk_page_setup_get_right_margin_LIB "cyggtk-x11-2.0-0.dll"
++#define gtk_page_setup_get_top_margin_LIB "cyggtk-x11-2.0-0.dll"
++#define gtk_page_setup_new_LIB "cyggtk-x11-2.0-0.dll"
++#define gtk_page_setup_set_bottom_margin_LIB "cyggtk-x11-2.0-0.dll"
++#define gtk_page_setup_set_left_margin_LIB "cyggtk-x11-2.0-0.dll"
++#define gtk_page_setup_set_orientation_LIB "cyggtk-x11-2.0-0.dll"
++#define gtk_page_setup_set_paper_size_LIB "cyggtk-x11-2.0-0.dll"
++#define gtk_page_setup_set_right_margin_LIB "cyggtk-x11-2.0-0.dll"
++#define gtk_page_setup_set_top_margin_LIB "cyggtk-x11-2.0-0.dll"
++#define gtk_paper_size_free_LIB "cyggtk-x11-2.0-0.dll"
++#define gtk_paper_size_get_display_name_LIB "cyggtk-x11-2.0-0.dll"
++#define gtk_paper_size_get_name_LIB "cyggtk-x11-2.0-0.dll"
++#define gtk_paper_size_get_ppd_name_LIB "cyggtk-x11-2.0-0.dll"
++#define gtk_paper_size_get_height_LIB "cyggtk-x11-2.0-0.dll"
++#define gtk_paper_size_get_width_LIB "cyggtk-x11-2.0-0.dll"
++#define gtk_paper_size_is_custom_LIB "cyggtk-x11-2.0-0.dll"
++#define gtk_paper_size_new_LIB "cyggtk-x11-2.0-0.dll"
++#define gtk_paper_size_new_custom_LIB "cyggtk-x11-2.0-0.dll"
++#define gtk_paper_size_new_from_ppd_LIB "cyggtk-x11-2.0-0.dll"
++#define gtk_print_job_get_printer_LIB "cyggtk-x11-2.0-0.dll"
++#define gtk_print_job_get_settings_LIB "cyggtk-x11-2.0-0.dll"
++#define gtk_print_job_get_status_LIB "cyggtk-x11-2.0-0.dll"
++#define gtk_print_job_get_surface_LIB "cyggtk-x11-2.0-0.dll"
++#define gtk_print_job_get_title_LIB "cyggtk-x11-2.0-0.dll"
++#define gtk_print_job_new_LIB "cyggtk-x11-2.0-0.dll"
++#define gtk_print_job_send_LIB "cyggtk-x11-2.0-0.dll"
++#define gtk_print_job_set_source_file_LIB "cyggtk-x11-2.0-0.dll"
++#define gtk_print_settings_foreach_LIB "cyggtk-x11-2.0-0.dll"
++#define gtk_print_settings_get_LIB "cyggtk-x11-2.0-0.dll"
++#define gtk_print_settings_get_collate_LIB "cyggtk-x11-2.0-0.dll"
++#define gtk_print_settings_get_n_copies_LIB "cyggtk-x11-2.0-0.dll"
++#define gtk_print_settings_get_orientation_LIB "cyggtk-x11-2.0-0.dll"
++#define gtk_print_settings_get_page_ranges_LIB "cyggtk-x11-2.0-0.dll"
++#define gtk_print_settings_get_paper_height_LIB "cyggtk-x11-2.0-0.dll"
++#define gtk_print_settings_get_paper_width_LIB "cyggtk-x11-2.0-0.dll"
++#define gtk_print_settings_get_print_pages_LIB "cyggtk-x11-2.0-0.dll"
++#define gtk_print_settings_get_printer_LIB "cyggtk-x11-2.0-0.dll"
++#define gtk_print_settings_get_resolution_LIB "cyggtk-x11-2.0-0.dll"
++#define gtk_print_settings_new_LIB "cyggtk-x11-2.0-0.dll"
++#define gtk_print_settings_set_LIB "cyggtk-x11-2.0-0.dll"
++#define gtk_print_settings_set_collate_LIB "cyggtk-x11-2.0-0.dll"
++#define gtk_print_settings_set_n_copies_LIB "cyggtk-x11-2.0-0.dll"
++#define gtk_print_settings_set_orientation_LIB "cyggtk-x11-2.0-0.dll"
++#define gtk_print_settings_set_page_ranges_LIB "cyggtk-x11-2.0-0.dll"
++#define gtk_print_settings_set_print_pages_LIB "cyggtk-x11-2.0-0.dll"
++#define gtk_print_settings_set_printer_LIB "cyggtk-x11-2.0-0.dll"
++#define gtk_print_unix_dialog_get_current_page_LIB "cyggtk-x11-2.0-0.dll"
++#define gtk_print_unix_dialog_get_page_setup_LIB "cyggtk-x11-2.0-0.dll"
++#define gtk_print_unix_dialog_get_selected_printer_LIB "cyggtk-x11-2.0-0.dll"
++#define gtk_print_unix_dialog_get_settings_LIB "cyggtk-x11-2.0-0.dll"
++#define gtk_print_unix_dialog_new_LIB "cyggtk-x11-2.0-0.dll"
++#define gtk_print_unix_dialog_set_current_page_LIB "cyggtk-x11-2.0-0.dll"
++#define gtk_print_unix_dialog_set_manual_capabilities_LIB "cyggtk-x11-2.0-0.dll"
++#define gtk_print_unix_dialog_set_page_setup_LIB "cyggtk-x11-2.0-0.dll"
++#define gtk_print_unix_dialog_set_settings_LIB "cyggtk-x11-2.0-0.dll"
++#define gtk_printer_get_backend_LIB "cyggtk-x11-2.0-0.dll"
++#define gtk_printer_get_name_LIB "cyggtk-x11-2.0-0.dll"
++#define gtk_printer_is_default_LIB "cyggtk-x11-2.0-0.dll"
++#define FcConfigAppFontAddFile_LIB "cygfontconfig-1.dll"
+ 
+ /* Field accessors */
+ #define G_OBJECT_CLASS_CONSTRUCTOR(arg0) (arg0)->constructor
