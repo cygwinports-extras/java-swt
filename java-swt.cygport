@@ -1,6 +1,13 @@
 inherit java
 
-DESCRIPTION="Eclipse Standard Widget Toolkit for Java"
+NAME="java-swt"
+VERSION=3.5.1
+RELEASE=1
+CATEGORY="Java"
+SUMMARY="Eclipse Standard Widget Toolkit for Java"
+DESCRIPTION="SWT is an open source widget toolkit for Java designed to provide
+efficient, portable access to the user-interface facilities of the operating
+systems on which it is implemented."
 HOMEPAGE="http://www.eclipse.org/swt/"
 SRC_URI="http://download.eclipse.org/eclipse/downloads/drops/R-${PV}-200909170800/swt-${PV}-gtk-linux-x86.zip"
 SRC_DIR=.

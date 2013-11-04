@@ -1,6 +1,0 @@
-category: Java
-requires: libatk1.0_0 libgcc1 libgdk_pixbuf2.0_0 libGL1 libglib2.0_0 libgnomeui2_0 libgnomevfs2_0 libgtk2.0_0 libpango1.0_0 libX11_6 libXtst6
-sdesc: "Eclipse SWT GUI toolkit for Java"
-ldesc: "SWT is an open source widget toolkit for Java designed to 
-provide efficient, portable access to the user-interface facilities of 
-the operating systems on which it is implemented."
